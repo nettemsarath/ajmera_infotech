@@ -34,7 +34,7 @@ services:
     container_name: node_server
     restart: always
     ports:
-      - "4000:3000"
+      - "3000:3000"
     environment:
       - DATABASE_URL=postgresql://user:password@postgres_db:5432/ajmera_infotech?schema=public
 

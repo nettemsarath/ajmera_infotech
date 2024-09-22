@@ -4,8 +4,7 @@ const REDIS_HOST = process.env.REDIS_HOST;
 const REDIS_PORT = process.env.REDIS_PORT;
 
 const redisClient = createClient({
-  host: REDIS_HOST,
-  port: REDIS_PORT,
+  url: `redis://${REDIS_HOST}:${REDIS_PORT}`,
 });
 
 redisClient.on("error", (err) => {
