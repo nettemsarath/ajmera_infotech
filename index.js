@@ -1,21 +1,90 @@
 const express = require('express')
 const dotenv = require('dotenv')
+const passport = require('passport');
 
-const prismaClient = require("./db/prisma")
+const {prismaClient, USERSROLES} = require("./db/prisma")
 const {ErrorHandler, CustomError} = require("./utils/errorhandler")
 const { redisClient, setRedisCacheData, getRedisCacheData, removeCacheData} = require("./redis")
+const { hashString, compareHashedString } = require("./utils/hashpassword")
+const {signJWT} = require("./utils/signJWT")
+const configurePassport = require('./config/passport');
 
 dotenv.config()
 const app = express()
 const PORT = process.env.PORT || 3000
 
 app.use(express.json())
+app.use(passport.initialize());
+configurePassport(passport);
 
-app.get('/', (req, res) => {
+app.get('/' ,(req, res) => {
   res.send('Hello World!')
 })
 
-app.get("/user", async(req, res, next)=>{
+app.post("/signup", async(req, res, next)=>{
+  const {name, email, password} = req.body;
+  try {
+    const {newUser} = await prismaClient.$transaction(async (prisma)=>{
+      let roleEntry = await prisma.role.findUnique({
+        where: {
+          role: USERSROLES.ADMIN,
+        },
+      });
+      if (!roleEntry) {
+        // Create role if it doesn't exist
+        roleEntry = await prisma.role.create({
+          data: {
+            role: USERSROLES.ADMIN,
+          },
+        });
+      };
+      const hashedPassword = await hashString(password)
+      // Create user with role
+      const newUser = await prisma.user.create({
+        data: {
+          name: name,
+          email: email,
+          password: hashedPassword,
+          roleId: roleEntry.id,
+        },
+      });
+      return { roleEntry, newUser }
+    })
+    res.status(200).json({
+      success: true,
+      message: "User Created Successfully",
+      user: newUser
+    })
+  } catch (error) {
+    next(error)
+  }
+})
+
+app.post("/login", async(req, res, next)=>{
+  try {
+    const {email, password}= req.body;
+    const user = await prismaClient.user.findUnique({
+      where: {
+        email: email
+      }
+    })
+    if( !user || !(await compareHashedString(password, user.password)) ){
+      return next(new CustomError('Invalid credentials', 401));
+    }
+    const {token, expiresIn} = signJWT({ id: user.id })
+    res.status(200).json({
+      status: "Success",
+      message: "Login successful",
+      token,
+      user,
+      expiresIn,
+    })
+  } catch (error) {
+    next(error)
+  }
+})
+
+app.get("/user", passport.authenticate('jwt', { session: false }), async(req, res, next)=>{
   const {name, role} = req.query;
   try {
     let query = {};
@@ -54,7 +123,7 @@ app.get("/user", async(req, res, next)=>{
   }
 })
 
-app.get("/user/:id", async(req, res, next)=>{
+app.get("/user/:id", passport.authenticate('jwt', { session: false }), async(req, res, next)=>{
   const {id} = req.params
   const userId = parseInt(id)
   try {
@@ -81,7 +150,7 @@ app.get("/user/:id", async(req, res, next)=>{
   }
 })
 
-app.post("/user", async(req, res, next)=>{
+app.post("/user", passport.authenticate('jwt', { session: false }), async(req, res, next)=>{
   const {name, email, password, role} = req.body
   try {
     const {newUser} = await prismaClient.$transaction(async (prisma)=>{
@@ -98,12 +167,13 @@ app.post("/user", async(req, res, next)=>{
           },
         });
       };
+      const hashedPassword = await hashString(password)
       // Create user with role
       const newUser = await prisma.user.create({
         data: {
           name: name,
           email: email,
-          password: password,
+          password: hashedPassword,
           roleId: roleEntry.id,
         },
       });
@@ -115,7 +185,7 @@ app.post("/user", async(req, res, next)=>{
   }
 })
 
-app.put("/user/:id", async(req, res, next)=>{
+app.put("/user/:id", passport.authenticate('jwt', { session: false }), async(req, res, next)=>{
   const userId = parseInt(req.params.id);
   const { name, email, role } = req.body;
   try {
@@ -148,7 +218,7 @@ app.put("/user/:id", async(req, res, next)=>{
   }
 })
 
-app.delete("/user/:id", async(req, res, next)=>{
+app.delete("/user/:id", passport.authenticate('jwt', { session: false }), async(req, res, next)=>{
   const {id} = req.params
   const userId = parseInt(id)
   try {
