@@ -1,5 +1,5 @@
 
-2. Add authentication
+2. Add authentication and authorization
 3. add validation
 4. API unit testing
 5. Migration roll back

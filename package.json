@@ -4,9 +4,9 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "start": "node index.js",
+    "start": "node server.js",
     "migrate:create": "prisma migrate dev --create-only",
-    "migrate": "prisma migrate dev && node index.js",
+    "migrate:dev": "prisma migrate dev && node server.js",
     "migrate:prod": "prisma migrate deploy",
     "generate": "prisma generate",
     "seed": "node prisma/seed.js",
@@ -24,7 +24,9 @@
     "passport": "^0.7.0",
     "passport-jwt": "^4.0.1",
     "pg": "^8.13.0",
-    "redis": "^4.7.0"
+    "redis": "^4.7.0",
+    "swagger-jsdoc": "^6.2.8",
+    "swagger-ui-express": "^5.0.1"
   },
   "devDependencies": {
     "prisma": "^5.19.1"

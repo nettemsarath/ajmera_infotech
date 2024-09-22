@@ -16,9 +16,8 @@ COPY . .
 # # Build the Prisma client.
 RUN npm run generate
 
-
 # Expose the application port.
 EXPOSE 3000
 
 # Start the application.
-CMD ["npm", "run", "migrate"]
+CMD ["npm", "run", "migrate:dev"]

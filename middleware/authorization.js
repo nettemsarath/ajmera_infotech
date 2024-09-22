@@ -22,7 +22,11 @@ const authorizeAction = (action, subject) => {
             ForbiddenError.from(ability).throwUnlessCan(action, subject);
             next();
         } catch (error) {
-            next(new CustomError(error.message, 403))
+            if (error instanceof ForbiddenError) {
+                next(new CustomError(error.message || 'Forbidden', 403));
+            } else {
+                next(error);
+            }
         }
     };
 }
