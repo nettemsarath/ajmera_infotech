@@ -1,12 +1,10 @@
-const { PrismaClient, USERSROLES } = require('@prisma/client');
+const {prismaClient, USERSROLES} = require('./prisma-client')
 const {hashString} = require("../utils/hashpassword")
-
-const prisma = new PrismaClient();
 
 async function createUsers(usersData) {
   for (const userData of usersData) {
     try {
-      const result = await prisma.$transaction(async (prisma)=>{
+      const result = await prismaClient.$transaction(async (prisma)=>{
         let roleEntry = await prisma.role.findUnique({
           where: {
             role: userData.role,
