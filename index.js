@@ -8,6 +8,7 @@ const { redisClient, setRedisCacheData, getRedisCacheData, removeCacheData} = re
 const { hashString, compareHashedString } = require("./utils/hashpassword")
 const {signJWT} = require("./utils/signJWT")
 const configurePassport = require('./config/passport');
+const authorizeAction = require("./config/authorization")
 
 dotenv.config()
 const app = express()
@@ -17,7 +18,7 @@ app.use(express.json())
 app.use(passport.initialize());
 configurePassport(passport);
 
-app.get('/' ,(req, res) => {
+app.get('/', (req, res) => {
   res.send('Hello World!')
 })
 
@@ -50,6 +51,7 @@ app.post("/signup", async(req, res, next)=>{
       });
       return { roleEntry, newUser }
     })
+    delete newUser.password;
     res.status(200).json({
       success: true,
       message: "User Created Successfully",
@@ -71,6 +73,7 @@ app.post("/login", async(req, res, next)=>{
     if( !user || !(await compareHashedString(password, user.password)) ){
       return next(new CustomError('Invalid credentials', 401));
     }
+    delete user.password
     const {token, expiresIn} = signJWT({ id: user.id })
     res.status(200).json({
       status: "Success",
@@ -129,15 +132,26 @@ app.get("/user/:id", passport.authenticate('jwt', { session: false }), async(req
   try {
     const cacheUser = await getRedisCacheData(JSON.stringify(userId));
     if(cacheUser){
-      const parseUser = JSON.parse(cacheUser)
-      return res.status(200).json(parseUser)
+      return res.status(200).json(cacheUser)
     }
     const user = await prismaClient.user.findUnique({
       where: {
         id: userId
       },
-      include: {
-        role: true
+      // include: {
+      //   role: true
+      // },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        roleId: true,
+        role: {
+          select: {
+            id: true,
+            role: true,
+          },
+        },
       }
     })
     if (!user) {
@@ -150,7 +164,8 @@ app.get("/user/:id", passport.authenticate('jwt', { session: false }), async(req
   }
 })
 
-app.post("/user", passport.authenticate('jwt', { session: false }), async(req, res, next)=>{
+app.post("/user", passport.authenticate('jwt', { session: false }), authorizeAction("create", "user"), async(req, res, next)=>{
+  console.log("creating user.....");
   const {name, email, password, role} = req.body
   try {
     const {newUser} = await prismaClient.$transaction(async (prisma)=>{
@@ -179,6 +194,7 @@ app.post("/user", passport.authenticate('jwt', { session: false }), async(req, r
       });
       return { roleEntry, newUser }
     })
+    newUser.password = password
     res.status(200).json(newUser)
   } catch (error) {
     next(error)
@@ -244,9 +260,9 @@ app.use(ErrorHandler)
 
 async function init() {
   try {
+    await await prismaClient.$connect();
     await redisClient.connect(); // Connect to Redis
-    console.log('Connected to Redis server');
-
+    console.log('Connected to Redis server'); 
     // Start the Express server
     app.listen(PORT, () => {
         console.log(`Example app listening on port ${PORT}`);
@@ -255,5 +271,12 @@ async function init() {
     process.exit(1);
   }
 }
+
+process.on('SIGINT', async () => {
+  await prismaClient.$disconnect();
+  await redisClient.disconnect();
+  console.log('Disconnected from Prisma and redis');
+  process.exit(0);
+});
 
 init()

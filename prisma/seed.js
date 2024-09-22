@@ -1,4 +1,5 @@
 const { PrismaClient, USERSROLES } = require('@prisma/client');
+const {hashString} = require("../utils/hashpassword")
 
 const prisma = new PrismaClient();
 
@@ -20,11 +21,12 @@ async function createUsers(usersData) {
           });
         };
         // Create user with role
+        const hashedPassword = await hashString(userData.password)
         const user = await prisma.user.create({
           data: {
             name: userData.name,
             email: userData.email,
-            password: userData.password,
+            password: hashedPassword,
             roleId: roleEntry.id,
           },
         });
@@ -68,6 +70,12 @@ const usersData = [
     name: "sarath",
     email: "nettemsarath@example.com",
     password: "nettemsarath@example.com",
+    role: USERSROLES.CUSTOMER
+  },
+  {
+    name: "nettem",
+    email: "nettem@example.com",
+    password: "nettem@example.com",
     role: USERSROLES.CUSTOMER
   },
 ]
