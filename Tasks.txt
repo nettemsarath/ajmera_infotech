@@ -1,0 +1,6 @@
+
+2. Add authentication
+3. add validation
+4. API unit testing
+5. Migration roll back
+6. Swagger documentaion of API
