@@ -7,6 +7,7 @@
     "start": "node server.js",
     "migrate:create": "prisma migrate dev --create-only",
     "migrate:dev": "prisma migrate dev && node server.js",
+    "migrate": "prisma migrate dev",
     "migrate:prod": "prisma migrate deploy",
     "generate": "prisma generate",
     "seed": "node prisma/seed.js",
